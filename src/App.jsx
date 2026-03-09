@@ -123,7 +123,7 @@ Retorne neste formato:
       const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
         headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]}),
+        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1000,messages:[{role:"user",content:prompt}]}),
       });
       const data=await res.json();
       if(data.error) throw new Error(data.error.message||"Erro da API");
@@ -143,22 +143,19 @@ Retorne neste formato:
 
   async function gerarOnboarding(res) {
     setLoadingOnboarding(true); setErroOnboarding(""); setAbaAtiva("onboarding");
-    const promptKickoff = "Gere um kickoff personalizado para GS da Rede Inova Drogarias. Retorne APENAS JSON valido, sem markdown, sem texto fora do JSON.\n"
-      + "PERFIL: " + res.perfil_principal + "/" + res.perfil_secundario
-      + " | Interesse: " + res.nivel1_interesse
-      + " | Experiencia: " + res.nivel2_experiencia
-      + " | Funil: " + res.nivel4_funil
-      + " | Score: " + (res.nivel3_rid?.score_geral||"?") + "/100"
-      + " | " + res.justificativa_perfil + "\n"
-      + "FILOSOFIA: kickoff eh encantamento nao apresentacao de ferramentas. Mostre a transformacao. Nao vamos soltar a mao dele.\n"
-      + "PILARES: Bandeiramento, Fachada, Comercial, Marketing, Aceleracao, Evento.\n"
-      + 'FORMATO OBRIGATORIO (respostas curtas, max 2 frases por campo):\n'
-      + '{"frase_abertura_kickoff":"texto","abertura_encantamento":"texto","historia_da_rede":"texto","linguagem_ideal":"texto","ordem_pilares":[{"pilar":"nome","prioridade":"Alta","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Alta","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Media","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Media","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Baixa","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Baixa","por_que":"texto","como_apresentar":"texto"}],"desafios_antecipados":[{"desafio":"texto","como_contornar":"texto"},{"desafio":"texto","como_contornar":"texto"}],"momentos_criticos":"texto","como_manter_vinculo":"texto"}';
+    const perfil_str = res.perfil_principal+"/"+res.perfil_secundario+" | "+res.nivel1_interesse+" | "+res.nivel2_experiencia+" | "+res.nivel4_funil+" | Score "+res.nivel3_rid?.score_geral+"/100";
+    const promptKickoff = `Kickoff GS Rede Inova. JSON apenas, sem markdown.
+Perfil: ${perfil_str}
+Contexto: ${res.justificativa_perfil}
+Regra: encantamento, nao ferramentas. Transformacao. Nao soltar a mao.
+Pilares: Bandeiramento, Fachada, Comercial, Marketing, Aceleracao, Evento.
+IMPORTANTE: cada campo de texto deve ter NO MAXIMO 1 frase curta. Seja extremamente conciso.
+{"frase_abertura_kickoff":"1 frase","abertura_encantamento":"1 frase","historia_da_rede":"1 frase","linguagem_ideal":"1 frase","ordem_pilares":[{"pilar":"Bandeiramento","prioridade":"Alta","por_que":"1 frase","como_apresentar":"1 frase"},{"pilar":"Fachada","prioridade":"Alta","por_que":"1 frase","como_apresentar":"1 frase"},{"pilar":"Comercial","prioridade":"Alta","por_que":"1 frase","como_apresentar":"1 frase"},{"pilar":"Marketing","prioridade":"Media","por_que":"1 frase","como_apresentar":"1 frase"},{"pilar":"Aceleracao","prioridade":"Media","por_que":"1 frase","como_apresentar":"1 frase"},{"pilar":"Evento","prioridade":"Baixa","por_que":"1 frase","como_apresentar":"1 frase"}],"desafios_antecipados":[{"desafio":"1 frase","como_contornar":"1 frase"},{"desafio":"1 frase","como_contornar":"1 frase"}],"momentos_criticos":"1 frase","como_manter_vinculo":"1 frase"}`;
     try {
       const res2=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
         headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:3000,messages:[{role:"user",content:promptKickoff}]}),
+        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:8000,messages:[{role:"user",content:promptKickoff}]}),
       });
       const data=await res2.json();
       if(data.error) throw new Error(data.error.message);
