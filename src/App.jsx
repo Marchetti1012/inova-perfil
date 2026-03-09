@@ -1,687 +1,597 @@
 import { useState, useRef } from "react";
 
-const INOVA_GREEN = "#CC0000";
-const INOVA_DARK = "#8B0000";
-const INOVA_LIGHT = "#FFF0F0";
-const INOVA_ACCENT = "#FF3333";
+// ─── CORES OFICIAIS — MANUAL DE IDENTIDADE VISUAL ───────────────────────────
+const R  = "#FF0000";   // Vermelho vivo   · RGB R255 G0   B0
+const RD = "#A30810";   // Vermelho escuro · RGB R163 G8   B16
+const CZ = "#605D5C";   // Cinza oficial   · RGB R96  G93  B92
+const BG = "#EBEBEB";   // Fundo cinza claro
+const WH = "#FFFFFF";
+
+const FONT      = "'Arial Black', 'Arial Bold', Arial, sans-serif";
+const FONT_BODY = "'Arial Narrow', Arial, sans-serif";
 
 const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_KEY;
 
 const PROFILES = {
-  Gestor: {
-    icon: "⚙️",
-    color: "#2563EB",
-    bg: "#EFF6FF",
-    border: "#BFDBFE",
-    desc: "Focado em processos, métricas e eficiência operacional",
-  },
-  Investidor: {
-    icon: "📈",
-    color: "#D97706",
-    bg: "#FFFBEB",
-    border: "#FDE68A",
-    desc: "Prioriza ROI, expansão e retorno financeiro",
-  },
-  Operacional: {
-    icon: "🏪",
-    color: "#7C3AED",
-    bg: "#F5F3FF",
-    border: "#DDD6FE",
-    desc: "Hands-on, focado no dia a dia da loja",
-  },
-  "Técnico/Farmacêutico": {
-    icon: "💊",
-    color: "#059669",
-    bg: "#ECFDF5",
-    border: "#A7F3D0",
-    desc: "Expertise técnica, foco em qualidade e compliance",
-  },
+  Gestor:                 { icon: "⚙️",  accent: "#1D4ED8", bg: "#EFF6FF", border: "#93C5FD" },
+  Investidor:             { icon: "📈",  accent: "#B45309", bg: "#FFFBEB", border: "#FCD34D" },
+  Operacional:            { icon: "🏪",  accent: "#6D28D9", bg: "#F5F3FF", border: "#C4B5FD" },
+  "Técnico/Farmacêutico": { icon: "💊",  accent: "#065F46", bg: "#ECFDF5", border: "#6EE7B7" },
 };
-
 const FUNIL = {
-  "Lead exploratório": { color: "#6B7280", icon: "🔍", step: 1 },
-  "Lead qualificado": { color: "#2563EB", icon: "✅", step: 2 },
-  "Lead prioritário": { color: "#D97706", icon: "⭐", step: 3 },
-  "Lead em decisão": { color: "#059669", icon: "🎯", step: 4 },
+  "Lead exploratório": { step:1, color: CZ       },
+  "Lead qualificado":  { step:2, color: "#1D4ED8" },
+  "Lead prioritário":  { step:3, color: "#B45309" },
+  "Lead em decisão":   { step:4, color: "#065F46" },
 };
-
 const AREAS = {
-  Comercial: { icon: "💰", color: "#DC2626" },
-  Marca: { icon: "🎨", color: "#7C3AED" },
-  Gestão: { icon: "📊", color: "#2563EB" },
-  Fidelização: { icon: "❤️", color: "#DB2777" },
+  Comercial: "💰", Marca: "🎨", Gestão: "📊", Fidelização: "❤️",
 };
-
 const EXPERIENCIA = {
-  "Empreendedor iniciante": { icon: "🌱", color: "#059669", step: 1 },
-  "Dono de farmácia em operação": { icon: "🏪", color: "#D97706", step: 2 },
-  "Empresário com múltiplas lojas": { icon: "🏢", color: "#7C3AED", step: 3 },
+  "Empreendedor iniciante":         { step:1, icon:"🌱" },
+  "Dono de farmácia em operação":   { step:2, icon:"🏪" },
+  "Empresário com múltiplas lojas": { step:3, icon:"🏢" },
 };
 
+// ─── COMPONENTES BASE ────────────────────────────────────────────────────────
+function SecBar({ children, color=RD }) {
+  return (
+    <div style={{
+      background:`linear-gradient(90deg,${color} 0%,${color === RD ? R : color} 100%)`,
+      padding:"8px 18px", display:"flex", alignItems:"center", gap:8,
+    }}>
+      <span style={{ color:WH, fontSize:10, fontWeight:900, letterSpacing:2.5, fontFamily:FONT, textTransform:"uppercase" }}>
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function Faixas({ n=4, opacity=0.15 }) {
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+      {Array.from({length:n}).map((_,i)=>(
+        <div key={i} style={{ height:7, background:R, opacity }} />
+      ))}
+    </div>
+  );
+}
+
+function Card({ children, accent=RD, style={} }) {
+  return (
+    <div style={{
+      background:WH, borderLeft:`4px solid ${accent}`,
+      border:`1px solid #D1D5DB`, borderLeft:`4px solid ${accent}`, ...style,
+    }}>{children}</div>
+  );
+}
+
+function BtnInova({ onClick, disabled, children, full=false, outline=false, small=false }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      width: full?"100%":"auto",
+      padding: small?"8px 16px":"13px 28px",
+      background: outline ? WH : `linear-gradient(90deg,${RD},${R})`,
+      color: outline ? RD : WH,
+      border: outline ? `2px solid ${R}` : "none",
+      cursor: disabled?"not-allowed":"pointer",
+      opacity: disabled?0.5:1,
+      fontSize: small?10:11, fontWeight:900, fontFamily:FONT,
+      letterSpacing:2, textTransform:"uppercase",
+    }}>{children}</button>
+  );
+}
+
+// ─── APP ─────────────────────────────────────────────────────────────────────
 export default function InovaPerfilCliente() {
-  const [step, setStep] = useState("form"); // form | loading | result
-  const [form, setForm] = useState({
-    nome: "",
-    codigo: "",
-    tamanho: "",
-    transcricao: "",
-  });
-  const [resultado, setResultado] = useState(null);
-  const [erro, setErro] = useState("");
+  const [step,setStep]                           = useState("form");
+  const [form,setForm]                           = useState({ nome:"",codigo:"",tamanho:"",transcricao:"" });
+  const [resultado,setResultado]                 = useState(null);
+  const [erro,setErro]                           = useState("");
+  const [abaAtiva,setAbaAtiva]                   = useState("perfil");
+  const [onboarding,setOnboarding]               = useState(null);
+  const [loadingOnboarding,setLoadingOnboarding] = useState(false);
+  const [erroOnboarding,setErroOnboarding]       = useState("");
   const fileRef = useRef();
 
-  function handleField(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  }
+  function handleField(e){ setForm({...form,[e.target.name]:e.target.value}); }
 
   async function handleFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+    const file = e.target.files[0]; if(!file) return;
     const ext = file.name.split(".").pop().toLowerCase();
-    if (ext === "docx" || ext === "pdf") {
-      setErro("⚠️ Para arquivos .docx ou .pdf: abra o arquivo, selecione tudo (Ctrl+A), copie (Ctrl+C) e cole no campo de texto abaixo.");
+    if(ext==="docx"||ext==="pdf"){
+      setErro("⚠️ Para .docx ou .pdf: abra o arquivo, selecione tudo (Ctrl+A), copie e cole no campo abaixo.");
       return;
     }
-    const text = await file.text();
-    setErro("");
-    setForm({ ...form, transcricao: text });
+    setErro(""); setForm({...form, transcricao: await file.text()});
   }
 
   async function analisar() {
-    if (!form.transcricao.trim()) {
-      setErro("Cole ou faça upload da transcrição da reunião.");
-      return;
-    }
-    setErro("");
-    setStep("loading");
-
-    const prompt = `Você é um especialista em análise de perfil de franqueados para a Rede Inova Drogarias.
-
-Analise a transcrição abaixo e retorne um JSON com a classificação completa do lead. Responda APENAS com JSON válido, sem texto extra, sem markdown.
-
+    if(!form.transcricao.trim()){ setErro("Cole ou faça upload da transcrição da reunião."); return; }
+    setErro(""); setStep("loading");
+    const prompt=`Você é um especialista em análise de perfil de franqueados para a Rede Inova Drogarias.
+Analise a transcrição abaixo e retorne JSON. Responda APENAS com JSON válido, sem texto extra, sem markdown.
 Dados do lead:
-- Nome: ${form.nome || "Não informado"}
-- Código da loja: ${form.codigo || "Não informado"}
-- Tamanho da farmácia: ${form.tamanho || "Não informado"}
-
-Transcrição da reunião:
+- Nome: ${form.nome||"Não informado"}
+- Código da loja: ${form.codigo||"Não informado"}
+- Tamanho da farmácia: ${form.tamanho||"Não informado"}
+Transcrição:
 ${form.transcricao}
-
-Retorne exatamente neste formato JSON:
-{
-  "perfil_principal": "<um de: Gestor | Investidor | Operacional | Técnico/Farmacêutico>",
-  "perfil_secundario": "<um de: Gestor | Investidor | Operacional | Técnico/Farmacêutico>",
-  "justificativa_perfil": "<2-3 frases explicando por que esses perfis foram identificados>",
-  "nivel1_interesse": "<um de: Comercial | Marca | Gestão | Fidelização>",
-  "nivel1_justificativa": "<1 frase>",
-  "nivel2_experiencia": "<um de: Empreendedor iniciante | Dono de farmácia em operação | Empresário com múltiplas lojas>",
-  "nivel2_justificativa": "<1 frase>",
-  "nivel3_rid": {
-    "potencial_investimento": "<Alto | Médio | Baixo>",
-    "estrutura_equipe": "<Forte | Adequada | Precisa desenvolver>",
-    "estrutura_estoque": "<Bem estruturado | Médio | Precisa desenvolver>",
-    "aderencia_rede": "<Alta | Média | Baixa>",
-    "score_geral": "<número de 0 a 100>",
-    "observacao": "<1-2 frases>"
-  },
-  "nivel4_funil": "<um de: Lead exploratório | Lead qualificado | Lead prioritário | Lead em decisão>",
-  "nivel4_justificativa": "<1 frase>",
-  "abordagem_recomendada": "<3-5 frases sobre como se comunicar com esse cliente, a linguagem e tom adequados>",
-  "pontos_atencao": ["<ponto 1>", "<ponto 2>", "<ponto 3>"],
-  "proximos_passos": ["<passo 1>", "<passo 2>", "<passo 3>"],
-  "frase_chave": "<Uma frase curta que resume como falar com esse cliente>"
-}`;
-
+Retorne neste formato:
+{"perfil_principal":"<Gestor|Investidor|Operacional|Técnico/Farmacêutico>","perfil_secundario":"<idem>","justificativa_perfil":"<2-3 frases>","nivel1_interesse":"<Comercial|Marca|Gestão|Fidelização>","nivel1_justificativa":"<1 frase>","nivel2_experiencia":"<Empreendedor iniciante|Dono de farmácia em operação|Empresário com múltiplas lojas>","nivel2_justificativa":"<1 frase>","nivel3_rid":{"potencial_investimento":"<Alto|Médio|Baixo>","estrutura_equipe":"<Forte|Adequada|Precisa desenvolver>","estrutura_estoque":"<Bem estruturado|Médio|Precisa desenvolver>","aderencia_rede":"<Alta|Média|Baixa>","score_geral":"<0-100>","observacao":"<1-2 frases>"},"nivel4_funil":"<Lead exploratório|Lead qualificado|Lead prioritário|Lead em decisão>","nivel4_justificativa":"<1 frase>","abordagem_recomendada":"<3-5 frases>","pontos_atencao":["<p1>","<p2>","<p3>"],"proximos_passos":["<p1>","<p2>","<p3>"],"frase_chave":"<frase curta>"}`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "x-api-key": ANTHROPIC_KEY,
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true"
-          },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: prompt }],
-        }),
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]}),
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message || "Erro da API Anthropic");
-      const raw = data.content?.map((b) => b.text || "").join("") || "";
-      if (!raw) throw new Error("Resposta vazia da API");
-      const clean = raw.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      setResultado({ ...parsed, nome: form.nome, codigo: form.codigo, tamanho: form.tamanho });
+      const data=await res.json();
+      if(data.error) throw new Error(data.error.message||"Erro da API");
+      const raw=data.content?.map(b=>b.text||"").join("")||"";
+      if(!raw) throw new Error("Resposta vazia");
+      const parsed=JSON.parse(raw.replace(/```json|```/g,"").trim());
+      setResultado({...parsed,nome:form.nome,codigo:form.codigo,tamanho:form.tamanho});
       setStep("result");
-    } catch (e) {
-      const msg = e?.message || String(e);
-      setErro("Erro ao processar a análise: " + msg + " — Verifique se a chave de API está correta.");
-      setStep("form");
-    }
+    } catch(e){ setErro("Erro: "+(e?.message||String(e))); setStep("form"); }
   }
 
-  function reiniciar() {
-    setStep("form");
-    setResultado(null);
-    setForm({ nome: "", codigo: "", tamanho: "", transcricao: "" });
+  function reiniciar(){
+    setStep("form"); setResultado(null); setOnboarding(null);
+    setAbaAtiva("perfil"); setErroOnboarding("");
+    setForm({nome:"",codigo:"",tamanho:"",transcricao:""});
   }
 
-  const pp = resultado && PROFILES[resultado.perfil_principal];
-  const ps = resultado && PROFILES[resultado.perfil_secundario];
+  async function gerarOnboarding(res) {
+    setLoadingOnboarding(true); setErroOnboarding(""); setAbaAtiva("onboarding");
+    const prompt=`Você é especialista em onboarding de licenciados da Rede Inova Drogarias.
+PERFIL: Nome=${res.nome||"?"} · Perfil=${res.perfil_principal}/${res.perfil_secundario} · Interesse=${res.nivel1_interesse} · Experiência=${res.nivel2_experiencia} · Funil=${res.nivel4_funil} · Score=${res.nivel3_rid?.score_geral}/100 · Aderência=${res.nivel3_rid?.aderencia_rede} · Farmácia=${res.tamanho||"?"} · Justificativa=${res.justificativa_perfil}
+FILOSOFIA: O kick-off NÃO apresenta ferramentas. É encantamento. Conta a história da rede, mostra a transformação. Como entregar a chave de um apartamento — mostra os cômodos com emoção, não explica que o quarto é para dormir. Filosofia: "Não vamos soltar a mão dele".
+PILARES: Bandeiramento · Fachada/Identidade Visual · Comercial · Marketing · Aceleração · Evento
+Responda APENAS com JSON válido:
+{"abertura_encantamento":"<3-4 frases como abrir o kick-off>","historia_da_rede":"<2-3 frases como contar a história>","ordem_pilares":[{"pilar":"<nome>","prioridade":"<Alta|Média|Baixa>","por_que":"<razão>","como_apresentar":"<benefício/resultado, sem ferramenta>"}],"linguagem_ideal":"<tom, vocab, o que usar/evitar>","desafios_antecipados":[{"desafio":"<desafio>","como_contornar":"<estratégia>"}],"momentos_criticos":"<quando pode desengajar e como agir>","como_manter_vinculo":"<frequência, canal, tipo de contato>","frase_abertura_kickoff":"<frase exata para abrir>"}`;
+    try {
+      const res2=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]}),
+      });
+      const data=await res2.json();
+      if(data.error) throw new Error(data.error.message);
+      const raw=data.content?.map(b=>b.text||"").join("")||"";
+      setOnboarding(JSON.parse(raw.replace(/```json|```/g,"").trim()));
+    } catch(e){ setErroOnboarding("Erro: "+(e?.message||String(e))); }
+    finally { setLoadingOnboarding(false); }
+  }
+
+  const pp    = resultado && PROFILES[resultado.perfil_principal];
+  const ps    = resultado && PROFILES[resultado.perfil_secundario];
   const funil = resultado && FUNIL[resultado.nivel4_funil];
-  const area = resultado && AREAS[resultado.nivel1_interesse];
-  const exp = resultado && EXPERIENCIA[resultado.nivel2_experiencia];
+  const exp   = resultado && EXPERIENCIA[resultado.nivel2_experiencia];
+  const scoreVal = resultado ? (parseInt(resultado.nivel3_rid?.score_geral)||0) : 0;
+  const scoreColor = scoreVal>=70 ? "#065F46" : scoreVal>=40 ? "#B45309" : "#991B1B";
+
+  const inp = {
+    width:"100%", padding:"11px 14px", fontSize:13,
+    border:`1px solid #D1D5DB`, borderBottom:`2px solid ${CZ}`,
+    background:"#FAFAFA", fontFamily:FONT_BODY, color:"#111",
+    outline:"none", boxSizing:"border-box", borderRadius:0,
+  };
+  const lbl = {
+    display:"block", fontSize:10, fontWeight:900, color:CZ,
+    letterSpacing:2, textTransform:"uppercase", fontFamily:FONT, marginBottom:5,
+  };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F0F7F4", fontFamily: "'Georgia', serif" }}>
+    <div style={{ minHeight:"100vh", background:BG, fontFamily:FONT_BODY }}>
+
       {/* HEADER */}
-      <div style={{
-        background: `linear-gradient(135deg, ${INOVA_DARK} 0%, ${INOVA_GREEN} 100%)`,
-        padding: "28px 32px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        boxShadow: "0 4px 24px rgba(0,85,58,0.25)"
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: 12,
-            background: "rgba(255,255,255,0.15)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 24, border: "2px solid rgba(255,255,255,0.3)"
-          }}>💊</div>
-          <div>
-            <div style={{ color: "#fff", fontSize: 20, fontWeight: "bold", letterSpacing: 0.5 }}>
-              Inova Drogarias
-            </div>
-            <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, fontStyle: "italic" }}>
-              Sistema de Identificação de Perfil do Cliente
-            </div>
-          </div>
+      <header style={{ background:RD, borderBottom:`4px solid ${R}` }}>
+        <div style={{ display:"flex" }}>
+          {[R,"#C20000",RD,"#8A0007","#6A0005"].map((c,i)=>(
+            <div key={i} style={{ flex:1, height:5, background:c }} />
+          ))}
         </div>
-        {step === "result" && (
-          <button onClick={reiniciar} style={{
-            background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.4)",
-            color: "#fff", padding: "8px 20px", borderRadius: 8, cursor: "pointer",
-            fontSize: 13, fontFamily: "inherit"
-          }}>
-            ← Nova Análise
-          </button>
-        )}
-      </div>
-
-      <div style={{ maxWidth: 820, margin: "0 auto", padding: "32px 20px" }}>
-
-        {/* FORMULÁRIO */}
-        {step === "form" && (
-          <div>
+        <div style={{ maxWidth:900, margin:"0 auto", padding:"16px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:16 }}>
             <div style={{
-              background: "#fff", borderRadius: 16, padding: 32,
-              boxShadow: "0 2px 16px rgba(0,85,58,0.08)", marginBottom: 24,
-              border: `1px solid ${INOVA_LIGHT}`
+              width:44, height:44, background:R, flexShrink:0,
+              clipPath:"polygon(12% 0%,88% 0%,100% 12%,100% 88%,88% 100%,12% 100%,0% 88%,0% 12%)",
+              display:"flex", alignItems:"center", justifyContent:"center",
             }}>
-              <h2 style={{ margin: "0 0 6px", color: INOVA_DARK, fontSize: 20 }}>
-                Dados do Lead
-              </h2>
-              <p style={{ margin: "0 0 24px", color: "#6B7280", fontSize: 14 }}>
-                Preencha as informações básicas antes de carregar a transcrição.
-              </p>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: 13, color: "#374151", marginBottom: 6, fontWeight: "600" }}>
-                    Nome do cliente
-                  </label>
-                  <input
-                    name="nome" value={form.nome} onChange={handleField}
-                    placeholder="Ex: João Silva"
-                    style={{
-                      width: "100%", padding: "10px 14px", borderRadius: 8,
-                      border: "1.5px solid #FECACA", fontSize: 14, fontFamily: "inherit",
-                      outline: "none", boxSizing: "border-box",
-                      background: "#FFFAFA"
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 13, color: "#374151", marginBottom: 6, fontWeight: "600" }}>
-                    Código da loja
-                  </label>
-                  <input
-                    name="codigo" value={form.codigo} onChange={handleField}
-                    placeholder="Ex: RID-0042"
-                    style={{
-                      width: "100%", padding: "10px 14px", borderRadius: 8,
-                      border: "1.5px solid #FECACA", fontSize: 14, fontFamily: "inherit",
-                      outline: "none", boxSizing: "border-box",
-                      background: "#FFFAFA"
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 13, color: "#374151", marginBottom: 6, fontWeight: "600" }}>
-                  Tamanho / situação da farmácia
-                </label>
-                <select
-                  name="tamanho" value={form.tamanho} onChange={handleField}
-                  style={{
-                    width: "100%", padding: "10px 14px", borderRadius: 8,
-                    border: "1.5px solid #FECACA", fontSize: 14, fontFamily: "inherit",
-                    outline: "none", background: "#FFFAFA", color: form.tamanho ? "#111" : "#9CA3AF"
-                  }}
-                >
-                  <option value="">Selecione uma opção</option>
-                  <option value="Ainda não abriu / abrindo primeira farmácia">Ainda não abriu / abrindo primeira farmácia</option>
-                  <option value="1 farmácia em operação (pequeno porte)">1 farmácia em operação (pequeno porte)</option>
-                  <option value="1 farmácia em operação (médio porte)">1 farmácia em operação (médio porte)</option>
-                  <option value="1 farmácia em operação (grande porte)">1 farmácia em operação (grande porte)</option>
-                  <option value="2 a 5 farmácias">2 a 5 farmácias</option>
-                  <option value="Mais de 5 farmácias">Mais de 5 farmácias</option>
-                </select>
-              </div>
+              <span style={{ color:WH, fontSize:22, fontWeight:900, fontFamily:FONT, fontStyle:"italic" }}>i</span>
             </div>
-
-            <div style={{
-              background: "#fff", borderRadius: 16, padding: 32,
-              boxShadow: "0 2px 16px rgba(0,85,58,0.08)",
-              border: `1px solid ${INOVA_LIGHT}`
-            }}>
-              <h2 style={{ margin: "0 0 6px", color: INOVA_DARK, fontSize: 20 }}>
-                Transcrição da Reunião
-              </h2>
-              <p style={{ margin: "0 0 20px", color: "#6B7280", fontSize: 14 }}>
-                Cole o texto ou faça upload de um arquivo (.txt, .pdf, .docx).
-              </p>
-
-              {/* Upload área */}
-              <div
-                onClick={() => fileRef.current.click()}
-                style={{
-                  border: `2px dashed ${INOVA_GREEN}`, borderRadius: 12,
-                  padding: "20px", marginBottom: 16, cursor: "pointer",
-                  background: INOVA_LIGHT, textAlign: "center",
-                  transition: "all 0.2s"
-                }}
-              >
-                <div style={{ fontSize: 28, marginBottom: 6 }}>📎</div>
-                <div style={{ color: INOVA_GREEN, fontWeight: "600", fontSize: 14 }}>
-                  Clique para fazer upload
-                </div>
-                <div style={{ color: "#9CA3AF", fontSize: 12, marginTop: 4 }}>
-                  Apenas .txt — ou cole o texto abaixo
-                </div>
-                <input ref={fileRef} type="file" accept=".txt" onChange={handleFile}
-                  style={{ display: "none" }} />
-              </div>
-
-              <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 13, marginBottom: 12 }}>
-                — ou cole a transcrição abaixo —
-              </div>
-
-              <textarea
-                name="transcricao" value={form.transcricao} onChange={handleField}
-                placeholder="Cole aqui a transcrição completa da reunião com o lead..."
-                rows={10}
-                style={{
-                  width: "100%", padding: "14px", borderRadius: 10,
-                  border: "1.5px solid #FECACA", fontSize: 13, fontFamily: "inherit",
-                  outline: "none", resize: "vertical", boxSizing: "border-box",
-                  background: "#FFFAFA", lineHeight: 1.6, color: "#374151"
-                }}
-              />
-
-              {form.transcricao && (
-                <div style={{
-                  marginTop: 8, fontSize: 12, color: INOVA_GREEN,
-                  textAlign: "right"
-                }}>
-                  ✓ {form.transcricao.length.toLocaleString()} caracteres carregados
-                </div>
-              )}
-
-              {erro && (
-                <div style={{
-                  marginTop: 12, padding: "10px 16px", borderRadius: 8,
-                  background: "#FEF2F2", border: "1px solid #FECACA",
-                  color: "#DC2626", fontSize: 13
-                }}>
-                  ⚠️ {erro}
-                </div>
-              )}
-
-              <button
-                onClick={analisar}
-                style={{
-                  marginTop: 20, width: "100%", padding: "14px",
-                  background: `linear-gradient(135deg, ${INOVA_GREEN}, ${INOVA_DARK})`,
-                  color: "#fff", border: "none", borderRadius: 10, fontSize: 16,
-                  fontWeight: "bold", cursor: "pointer", fontFamily: "inherit",
-                  letterSpacing: 0.5, boxShadow: `0 4px 16px rgba(0,133,90,0.3)`
-                }}
-              >
-                🔍 Analisar Perfil do Cliente
-              </button>
+            <div>
+              <div style={{ color:"rgba(255,255,255,0.6)", fontSize:9, fontWeight:900, letterSpacing:3, fontFamily:FONT }}>REDE</div>
+              <div style={{ color:WH, fontSize:22, fontWeight:900, letterSpacing:1, fontFamily:FONT, fontStyle:"italic", lineHeight:1.05 }}>INOVA</div>
+              <div style={{ color:"rgba(255,255,255,0.6)", fontSize:9, fontWeight:900, letterSpacing:3, fontFamily:FONT }}>DROGARIAS</div>
+            </div>
+            <div style={{ width:1, height:38, background:"rgba(255,255,255,0.2)", margin:"0 8px" }} />
+            <div>
+              <div style={{ color:WH, fontSize:11, fontWeight:900, letterSpacing:1.5, fontFamily:FONT }}>SISTEMA DE IDENTIFICAÇÃO</div>
+              <div style={{ color:"rgba(255,255,255,0.55)", fontSize:10, letterSpacing:.5 }}>Perfil do Cliente · Gerente de Sucesso</div>
             </div>
           </div>
-        )}
+          {step==="result" && <BtnInova onClick={reiniciar} outline small>← Nova Análise</BtnInova>}
+        </div>
+      </header>
 
-        {/* LOADING */}
-        {step === "loading" && (
-          <div style={{
-            background: "#fff", borderRadius: 20, padding: "60px 40px",
-            textAlign: "center", boxShadow: "0 2px 24px rgba(0,85,58,0.1)"
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 20, animation: "spin 2s linear infinite" }}>
-              🔬
-            </div>
-            <h3 style={{ color: INOVA_DARK, margin: "0 0 10px", fontSize: 22 }}>
-              Analisando perfil...
-            </h3>
-            <p style={{ color: "#6B7280", fontSize: 14, margin: 0 }}>
-              Processando a transcrição e identificando padrões de comportamento.
-            </p>
-            <div style={{ marginTop: 24, display: "flex", justifyContent: "center", gap: 8 }}>
-              {[0, 1, 2].map(i => (
-                <div key={i} style={{
-                  width: 10, height: 10, borderRadius: "50%",
-                  background: INOVA_GREEN,
-                  animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`
-                }} />
-              ))}
-            </div>
-            <style>{`
-              @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-              @keyframes pulse { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1.2); } }
-            `}</style>
-          </div>
-        )}
+      <main style={{ maxWidth:900, margin:"0 auto", padding:"28px 24px" }}>
 
-        {/* RESULTADO */}
-        {step === "result" && resultado && (
+        {/* ════ FORMULÁRIO ══════════════════════════════════════════════════ */}
+        {step==="form" && (
           <div>
-
-            {/* CABEÇALHO DO CLIENTE */}
-            <div style={{
-              background: `linear-gradient(135deg, ${INOVA_DARK} 0%, ${INOVA_GREEN} 100%)`,
-              borderRadius: 16, padding: "24px 28px", marginBottom: 20,
-              color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center",
-              flexWrap: "wrap", gap: 12
-            }}>
-              <div>
-                <div style={{ fontSize: 22, fontWeight: "bold", marginBottom: 4 }}>
-                  {resultado.nome || "Lead"}
-                </div>
-                <div style={{ opacity: 0.8, fontSize: 14 }}>
-                  {resultado.codigo && `🏷️ ${resultado.codigo}`}
-                  {resultado.codigo && resultado.tamanho && " · "}
-                  {resultado.tamanho && `🏪 ${resultado.tamanho}`}
-                </div>
-              </div>
-              <div style={{
-                background: "rgba(255,255,255,0.15)", borderRadius: 10,
-                padding: "10px 18px", border: "1.5px solid rgba(255,255,255,0.3)",
-                textAlign: "center"
-              }}>
-                <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 2, textTransform: "uppercase", letterSpacing: 1 }}>
-                  Score RID
-                </div>
-                <div style={{ fontSize: 28, fontWeight: "bold" }}>
-                  {resultado.nivel3_rid?.score_geral ?? "—"}
-                  <span style={{ fontSize: 14, opacity: 0.7 }}>/100</span>
-                </div>
-              </div>
-            </div>
-
-            {/* FRASE CHAVE */}
-            <div style={{
-              background: "#FFFBEB", border: "1.5px solid #FDE68A",
-              borderRadius: 12, padding: "16px 20px", marginBottom: 20,
-              display: "flex", gap: 12, alignItems: "flex-start"
-            }}>
-              <span style={{ fontSize: 20 }}>💬</span>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: "700", color: "#92400E", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
-                  Frase-chave para abordagem
-                </div>
-                <div style={{ color: "#78350F", fontSize: 15, fontStyle: "italic" }}>
-                  "{resultado.frase_chave}"
-                </div>
-              </div>
-            </div>
-
-            {/* PERFIS PRINCIPAL + SECUNDÁRIO */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-              {[
-                { label: "Perfil Principal", key: "perfil_principal", badge: "★" },
-                { label: "Perfil Secundário", key: "perfil_secundario", badge: "◇" },
-              ].map(({ label, key, badge }) => {
-                const prof = PROFILES[resultado[key]];
-                if (!prof) return null;
-                return (
-                  <div key={key} style={{
-                    background: prof.bg, border: `2px solid ${prof.border}`,
-                    borderRadius: 14, padding: "20px"
-                  }}>
-                    <div style={{ fontSize: 11, fontWeight: "700", color: prof.color, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-                      {badge} {label}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                      <span style={{ fontSize: 28 }}>{prof.icon}</span>
-                      <span style={{ fontSize: 18, fontWeight: "bold", color: prof.color }}>
-                        {resultado[key]}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 12, color: "#6B7280" }}>{prof.desc}</div>
+            <div style={{ marginBottom:22 }}><Faixas n={3} opacity={.12} /></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:18, marginBottom:18 }}>
+              <Card accent={RD}>
+                <SecBar>Dados do Lead</SecBar>
+                <div style={{ padding:18, display:"flex", flexDirection:"column", gap:12 }}>
+                  <div>
+                    <label style={lbl}>Nome do Cliente</label>
+                    <input name="nome" value={form.nome} onChange={handleField} placeholder="Ex: João da Silva" style={inp} />
                   </div>
-                );
-              })}
-            </div>
-
-            {/* JUSTIFICATIVA DOS PERFIS */}
-            <div style={{
-              background: "#fff", borderRadius: 12, padding: "18px 22px",
-              border: "1px solid #E5E7EB", marginBottom: 20,
-              borderLeft: `4px solid ${INOVA_GREEN}`
-            }}>
-              <div style={{ fontSize: 12, fontWeight: "700", color: INOVA_GREEN, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-                Justificativa da Classificação
-              </div>
-              <p style={{ margin: 0, color: "#374151", fontSize: 14, lineHeight: 1.7 }}>
-                {resultado.justificativa_perfil}
-              </p>
-            </div>
-
-            {/* 4 NÍVEIS */}
-            <div style={{
-              background: "#fff", borderRadius: 14, padding: "22px 24px",
-              border: "1px solid #E5E7EB", marginBottom: 20
-            }}>
-              <h3 style={{ margin: "0 0 18px", color: INOVA_DARK, fontSize: 16 }}>
-                📊 Classificação por Níveis
-              </h3>
-
-              {/* Nível 1 */}
-              <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #F3F4F6" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                  <div style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                    Nível 1 — Interesse Principal
+                  <div>
+                    <label style={lbl}>Código da Loja</label>
+                    <input name="codigo" value={form.codigo} onChange={handleField} placeholder="Ex: RID-0042" style={inp} />
                   </div>
-                  {area && (
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 6,
-                      background: "#F9FAFB", border: "1.5px solid #E5E7EB",
-                      borderRadius: 20, padding: "4px 14px",
-                      fontSize: 14, fontWeight: "700", color: area.color
-                    }}>
-                      {area.icon} {resultado.nivel1_interesse}
-                    </div>
-                  )}
-                </div>
-                <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6B7280" }}>
-                  {resultado.nivel1_justificativa}
-                </p>
-              </div>
-
-              {/* Nível 2 */}
-              <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #F3F4F6" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                  <div style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                    Nível 2 — Experiência
+                  <div>
+                    <label style={lbl}>Situação da Farmácia</label>
+                    <select name="tamanho" value={form.tamanho} onChange={handleField} style={inp}>
+                      <option value="">Selecione...</option>
+                      <option>Farmácia pequena (até 80m²)</option>
+                      <option>Farmácia média (80–200m²)</option>
+                      <option>Farmácia grande (200m²+)</option>
+                      <option>Nova abertura (sem estrutura)</option>
+                      <option>Conversão de outra rede</option>
+                    </select>
                   </div>
-                  {exp && (
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 6,
-                      background: "#F9FAFB", border: "1.5px solid #E5E7EB",
-                      borderRadius: 20, padding: "4px 14px",
-                      fontSize: 13, fontWeight: "700", color: exp.color
-                    }}>
-                      {exp.icon} {resultado.nivel2_experiencia}
-                    </div>
-                  )}
                 </div>
-                <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6B7280" }}>
-                  {resultado.nivel2_justificativa}
-                </p>
-              </div>
-
-              {/* Nível 3 - RID */}
-              <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #F3F4F6" }}>
-                <div style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
-                  Nível 3 — Qualificação RID
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              </Card>
+              <Card accent={CZ} style={{ display:"flex", flexDirection:"column" }}>
+                <SecBar color={CZ}>Como Usar</SecBar>
+                <div style={{ padding:18, flex:1 }}>
                   {[
-                    { label: "Potencial de Investimento", val: resultado.nivel3_rid?.potencial_investimento },
-                    { label: "Estrutura de Equipe", val: resultado.nivel3_rid?.estrutura_equipe },
-                    { label: "Estrutura de Estoque", val: resultado.nivel3_rid?.estrutura_estoque },
-                    { label: "Aderência à Rede", val: resultado.nivel3_rid?.aderencia_rede },
-                  ].map(({ label, val }) => {
-                    const isHigh = ["Alto", "Forte", "Bem estruturado", "Alta"].includes(val);
-                    const isMed = ["Médio", "Adequada", "Média"].includes(val);
-                    const color = isHigh ? "#059669" : isMed ? "#D97706" : "#DC2626";
-                    const bg = isHigh ? "#ECFDF5" : isMed ? "#FFFBEB" : "#FEF2F2";
-                    return (
-                      <div key={label} style={{ background: bg, borderRadius: 8, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 2 }}>{label}</div>
-                        <div style={{ fontSize: 13, fontWeight: "700", color }}>{val}</div>
-                      </div>
-                    );
-                  })}
+                    ["📋","Cole a transcrição completa da reunião com o lead"],
+                    ["🤖","A IA identifica o perfil comportamental automaticamente"],
+                    ["📊","Receba classificação em 4 níveis: interesse, experiência, qualificação RID e funil"],
+                    ["🚀","Gere o Kickoff personalizado para o GS conduzir"],
+                  ].map(([icon,text],i)=>(
+                    <div key={i} style={{ display:"flex", gap:10, marginBottom:10, alignItems:"flex-start" }}>
+                      <span style={{ fontSize:17 }}>{icon}</span>
+                      <span style={{ fontSize:12, color:CZ, lineHeight:1.5 }}>{text}</span>
+                    </div>
+                  ))}
                 </div>
-                {resultado.nivel3_rid?.observacao && (
-                  <p style={{ margin: "10px 0 0", fontSize: 12, color: "#6B7280", fontStyle: "italic" }}>
-                    {resultado.nivel3_rid.observacao}
-                  </p>
+                <div style={{ padding:"0 18px 18px" }}><Faixas n={2} opacity={.08} /></div>
+              </Card>
+            </div>
+            <Card accent={R} style={{ marginBottom:18 }}>
+              <SecBar color={R}>Transcrição da Reunião</SecBar>
+              <div style={{ padding:18 }}>
+                <div style={{ display:"flex", gap:10, marginBottom:10, alignItems:"center" }}>
+                  <BtnInova onClick={()=>fileRef.current?.click()} outline small>📎 Upload .txt</BtnInova>
+                  <span style={{ fontSize:11, color:CZ }}>ou cole diretamente no campo abaixo</span>
+                  <input ref={fileRef} type="file" accept=".txt" style={{ display:"none" }} onChange={handleFile} />
+                </div>
+                <textarea name="transcricao" value={form.transcricao} onChange={handleField}
+                  placeholder="Cole aqui a transcrição completa da reunião com o lead..."
+                  rows={10} style={{ ...inp, resize:"vertical", lineHeight:1.6 }}
+                />
+                {form.transcricao && (
+                  <div style={{ marginTop:5, fontSize:11, color:CZ, textAlign:"right" }}>
+                    {form.transcricao.length.toLocaleString()} caracteres · {form.transcricao.split(/\s+/).filter(Boolean).length.toLocaleString()} palavras
+                  </div>
                 )}
               </div>
-
-              {/* Nível 4 - Funil */}
-              <div>
-                <div style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
-                  Nível 4 — Estágio no Funil
-                </div>
-                <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-                  {Object.entries(FUNIL).map(([name, data]) => {
-                    const isActive = resultado.nivel4_funil === name;
-                    return (
-                      <div key={name} style={{
-                        padding: "6px 14px", borderRadius: 20, fontSize: 12,
-                        fontWeight: isActive ? "700" : "400",
-                        background: isActive ? data.color : "#F3F4F6",
-                        color: isActive ? "#fff" : "#9CA3AF",
-                        border: `2px solid ${isActive ? data.color : "transparent"}`,
-                        transition: "all 0.2s"
-                      }}>
-                        {data.icon} {name}
-                      </div>
-                    );
-                  })}
-                </div>
-                <p style={{ margin: 0, fontSize: 13, color: "#6B7280" }}>
-                  {resultado.nivel4_justificativa}
-                </p>
+            </Card>
+            {erro && (
+              <div style={{ background:"#FEF2F2", borderLeft:`4px solid ${R}`, padding:"11px 15px", marginBottom:14, fontSize:12, color:"#991B1B" }}>
+                {erro}
               </div>
-            </div>
-
-            {/* ABORDAGEM RECOMENDADA */}
-            <div style={{
-              background: "#F0FDF4", border: "1.5px solid #BBF7D0",
-              borderRadius: 14, padding: "20px 24px", marginBottom: 20
-            }}>
-              <h3 style={{ margin: "0 0 12px", color: INOVA_DARK, fontSize: 15 }}>
-                🎯 Abordagem Recomendada
-              </h3>
-              <p style={{ margin: 0, color: "#166534", fontSize: 14, lineHeight: 1.8 }}>
-                {resultado.abordagem_recomendada}
-              </p>
-            </div>
-
-            {/* PONTOS DE ATENÇÃO + PRÓXIMOS PASSOS */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-              <div style={{
-                background: "#FFF7ED", border: "1.5px solid #FED7AA",
-                borderRadius: 14, padding: "20px 22px"
-              }}>
-                <h3 style={{ margin: "0 0 12px", color: "#92400E", fontSize: 15 }}>
-                  ⚠️ Pontos de Atenção
-                </h3>
-                <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                  {(resultado.pontos_atencao || []).map((p, i) => (
-                    <li key={i} style={{
-                      display: "flex", gap: 8, alignItems: "flex-start",
-                      marginBottom: 8, fontSize: 13, color: "#78350F"
-                    }}>
-                      <span style={{ color: "#F97316", marginTop: 1 }}>◆</span>
-                      {p}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div style={{
-                background: "#EFF6FF", border: "1.5px solid #BFDBFE",
-                borderRadius: 14, padding: "20px 22px"
-              }}>
-                <h3 style={{ margin: "0 0 12px", color: "#1E40AF", fontSize: 15 }}>
-                  ✅ Próximos Passos
-                </h3>
-                <ol style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                  {(resultado.proximos_passos || []).map((p, i) => (
-                    <li key={i} style={{
-                      display: "flex", gap: 10, alignItems: "flex-start",
-                      marginBottom: 8, fontSize: 13, color: "#1D4ED8"
-                    }}>
-                      <span style={{
-                        minWidth: 20, height: 20, borderRadius: "50%",
-                        background: "#2563EB", color: "#fff",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 11, fontWeight: "bold"
-                      }}>{i + 1}</span>
-                      {p}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </div>
-
-            <button
-              onClick={reiniciar}
-              style={{
-                width: "100%", padding: "14px",
-                background: `linear-gradient(135deg, ${INOVA_GREEN}, ${INOVA_DARK})`,
-                color: "#fff", border: "none", borderRadius: 10, fontSize: 15,
-                fontWeight: "bold", cursor: "pointer", fontFamily: "inherit"
-              }}
-            >
-              ← Analisar Novo Cliente
-            </button>
+            )}
+            <BtnInova onClick={analisar} full>Analisar Perfil do Cliente →</BtnInova>
           </div>
         )}
-      </div>
+
+        {/* ════ LOADING ═════════════════════════════════════════════════════ */}
+        {step==="loading" && (
+          <div style={{ background:WH, borderTop:`4px solid ${R}`, padding:"56px 40px", textAlign:"center" }}>
+            <div style={{ fontSize:13, fontWeight:900, color:RD, letterSpacing:2, fontFamily:FONT, marginBottom:8 }}>ANALISANDO PERFIL</div>
+            <div style={{ fontSize:12, color:CZ, marginBottom:26 }}>Processando a transcrição e identificando o perfil comportamental...</div>
+            <div style={{ display:"flex", justifyContent:"center", gap:6 }}>
+              {[R,RD,R].map((c,i)=>(
+                <div key={i} style={{ width:10, height:10, background:c, animation:`pulse 1.2s ease-in-out ${i*.2}s infinite` }} />
+              ))}
+            </div>
+            <style>{`@keyframes pulse{0%,80%,100%{opacity:.2;transform:scale(.7)}40%{opacity:1;transform:scale(1.2)}}`}</style>
+          </div>
+        )}
+
+        {/* ════ RESULTADO ═══════════════════════════════════════════════════ */}
+        {step==="result" && resultado && (
+          <div>
+            {/* Cabeçalho resultado */}
+            <div style={{ background:WH, borderTop:`4px solid ${RD}`, marginBottom:18 }}>
+              <div style={{ display:"flex" }}>
+                {[RD,"#C00000",R,"#C00000",RD].map((c,i)=>(
+                  <div key={i} style={{ flex:1, height:5, background:c }} />
+                ))}
+              </div>
+              <div style={{ padding:"18px 22px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
+                <div>
+                  <div style={{ fontSize:9, color:CZ, fontWeight:900, letterSpacing:2.5, fontFamily:FONT, marginBottom:4 }}>
+                    ANÁLISE CONCLUÍDA · {resultado.codigo||"—"}
+                  </div>
+                  <div style={{ fontSize:22, fontWeight:900, color:"#111", fontFamily:FONT, letterSpacing:1 }}>
+                    {resultado.nome?.toUpperCase()||"LEAD"}
+                  </div>
+                  <div style={{ fontSize:11, color:CZ, marginTop:2 }}>{resultado.tamanho||"—"}</div>
+                </div>
+                <div style={{ background:BG, border:`2px solid ${scoreColor}`, padding:"12px 22px", textAlign:"center" }}>
+                  <div style={{ fontSize:9, fontWeight:900, color:CZ, letterSpacing:2, fontFamily:FONT }}>SCORE RID</div>
+                  <div style={{ fontSize:38, fontWeight:900, color:scoreColor, fontFamily:FONT, lineHeight:1.05 }}>{scoreVal}</div>
+                  <div style={{ fontSize:9, color:CZ }}>/ 100</div>
+                </div>
+              </div>
+            </div>
+
+            {/* ABAS */}
+            <div style={{ display:"flex", marginBottom:18, borderBottom:`3px solid ${R}` }}>
+              {[{id:"perfil",label:"PERFIL DO CLIENTE"},{id:"onboarding",label:"KICKOFF REDE INOVA"}].map(aba=>(
+                <button key={aba.id} onClick={()=>{
+                  if(aba.id==="onboarding"&&!onboarding&&!loadingOnboarding) gerarOnboarding(resultado);
+                  else setAbaAtiva(aba.id);
+                }} style={{
+                  flex:1, padding:"12px 16px", border:"none", cursor:"pointer",
+                  fontFamily:FONT, fontSize:10, fontWeight:900, letterSpacing:2,
+                  textTransform:"uppercase", transition:"all .15s", borderRight:"2px solid #E5E7EB",
+                  background: abaAtiva===aba.id ? RD : "#D0D0D0",
+                  color: abaAtiva===aba.id ? WH : CZ,
+                }}>{aba.label}</button>
+              ))}
+            </div>
+
+            {/* ABA PERFIL */}
+            {abaAtiva==="perfil" && (
+              <div>
+                {/* Perfis */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:18 }}>
+                  {[{label:"PERFIL PRINCIPAL",data:pp,key:resultado.perfil_principal},
+                    {label:"PERFIL SECUNDÁRIO",data:ps,key:resultado.perfil_secundario}]
+                    .map(({label,data,key})=> data && (
+                    <Card key={label} accent={data.accent}>
+                      <SecBar color={data.accent}>{label}</SecBar>
+                      <div style={{ padding:"14px 18px", display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ fontSize:26 }}>{data.icon}</span>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:900, color:data.accent, fontFamily:FONT, letterSpacing:1 }}>
+                            {key.toUpperCase()}
+                          </div>
+                          <div style={{
+                            display:"inline-block", background:data.bg, border:`1px solid ${data.border}`,
+                            padding:"2px 8px", fontSize:9, fontWeight:900, color:data.accent, letterSpacing:1.5, fontFamily:FONT, marginTop:4,
+                          }}>{key.toUpperCase()}</div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Frase chave */}
+                <div style={{ background:RD, padding:"16px 20px", marginBottom:18, borderLeft:`6px solid ${R}` }}>
+                  <div style={{ fontSize:9, color:"rgba(255,255,255,0.55)", fontWeight:900, letterSpacing:2.5, fontFamily:FONT, marginBottom:6 }}>
+                    FRASE-CHAVE DE ABORDAGEM
+                  </div>
+                  <div style={{ color:WH, fontSize:14, fontStyle:"italic", lineHeight:1.65 }}>"{resultado.frase_chave}"</div>
+                </div>
+
+                {/* Justificativa */}
+                <Card accent={CZ} style={{ marginBottom:18 }}>
+                  <SecBar color={CZ}>Justificativa do Perfil</SecBar>
+                  <div style={{ padding:"12px 18px", fontSize:13, color:"#374151", lineHeight:1.7 }}>{resultado.justificativa_perfil}</div>
+                </Card>
+
+                {/* 4 níveis */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:18 }}>
+                  {[
+                    {n:"1",label:"INTERESSE",    value:resultado.nivel1_interesse,    sub:AREAS[resultado.nivel1_interesse]},
+                    {n:"2",label:"EXPERIÊNCIA",  value:resultado.nivel2_experiencia,  sub:exp?.step?`Nível ${exp.step}`:""},
+                    {n:"3",label:"QUALIF. RID",  value:`Score ${scoreVal}/100`,       sub:resultado.nivel3_rid?.aderencia_rede},
+                    {n:"4",label:"FUNIL",        value:resultado.nivel4_funil,        sub:funil?.step?`Estágio ${funil.step}/4`:""},
+                  ].map(({n,label,value,sub})=>(
+                    <div key={n} style={{ background:WH, borderTop:`3px solid ${R}`, padding:13, textAlign:"center" }}>
+                      <div style={{ fontSize:9, fontWeight:900, color:CZ, letterSpacing:1.5, fontFamily:FONT, marginBottom:6 }}>NÍV.{n} · {label}</div>
+                      <div style={{ fontSize:12, fontWeight:900, color:RD, fontFamily:FONT, lineHeight:1.3, marginBottom:3 }}>{value}</div>
+                      {sub && <div style={{ fontSize:11, color:CZ }}>{sub}</div>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* RID detalhes */}
+                <Card accent={RD} style={{ marginBottom:18 }}>
+                  <SecBar>Qualificação RID — Detalhes</SecBar>
+                  <div style={{ padding:16, display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:8 }}>
+                    {[
+                      ["Pot. Investimento",resultado.nivel3_rid?.potencial_investimento],
+                      ["Estrutura Equipe",resultado.nivel3_rid?.estrutura_equipe],
+                      ["Estrutura Estoque",resultado.nivel3_rid?.estrutura_estoque],
+                      ["Aderência à Rede",resultado.nivel3_rid?.aderencia_rede],
+                    ].map(([k,v])=>(
+                      <div key={k} style={{ background:BG, padding:"10px 12px", textAlign:"center" }}>
+                        <div style={{ fontSize:9, color:CZ, fontWeight:900, letterSpacing:1.5, fontFamily:FONT, marginBottom:4 }}>{k.toUpperCase()}</div>
+                        <div style={{ fontSize:12, fontWeight:900, color:RD, fontFamily:FONT }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding:"0 16px 16px" }}>
+                    <div style={{ height:7, background:"#E5E7EB" }}>
+                      <div style={{ height:7, width:`${scoreVal}%`, background:`linear-gradient(90deg,${RD},${R})`, transition:"width .8s" }} />
+                    </div>
+                    <div style={{ fontSize:11, color:CZ, marginTop:6 }}>{resultado.nivel3_rid?.observacao}</div>
+                  </div>
+                </Card>
+
+                {/* Abordagem */}
+                <Card accent={R} style={{ marginBottom:18 }}>
+                  <SecBar color={R}>Abordagem Recomendada</SecBar>
+                  <div style={{ padding:"12px 18px", fontSize:13, color:"#374151", lineHeight:1.8 }}>{resultado.abordagem_recomendada}</div>
+                </Card>
+
+                {/* Atenção + passos */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:22 }}>
+                  <Card accent="#B45309">
+                    <SecBar color="#B45309">⚠ Pontos de Atenção</SecBar>
+                    <div style={{ padding:14 }}>
+                      {(resultado.pontos_atencao||[]).map((p,i)=>(
+                        <div key={i} style={{ display:"flex", gap:8, marginBottom:9, fontSize:12, color:"#374151", alignItems:"flex-start" }}>
+                          <span style={{ color:R, fontWeight:900, marginTop:1 }}>▶</span>{p}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                  <Card accent="#065F46">
+                    <SecBar color="#065F46">✓ Próximos Passos</SecBar>
+                    <div style={{ padding:14 }}>
+                      {(resultado.proximos_passos||[]).map((p,i)=>(
+                        <div key={i} style={{ display:"flex", gap:9, marginBottom:9, fontSize:12, color:"#374151", alignItems:"flex-start" }}>
+                          <span style={{
+                            minWidth:20, height:20, background:"#065F46", color:WH,
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            fontSize:10, fontWeight:900, fontFamily:FONT, flexShrink:0,
+                          }}>{i+1}</span>{p}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+                <BtnInova onClick={reiniciar} full>← Analisar Novo Cliente</BtnInova>
+              </div>
+            )}
+
+            {/* ABA KICKOFF */}
+            {abaAtiva==="onboarding" && (
+              <div>
+                {loadingOnboarding && (
+                  <div style={{ background:WH, borderTop:`4px solid ${R}`, padding:"56px 40px", textAlign:"center" }}>
+                    <div style={{ fontSize:13, fontWeight:900, color:RD, letterSpacing:2, fontFamily:FONT, marginBottom:8 }}>MONTANDO O KICKOFF</div>
+                    <div style={{ fontSize:12, color:CZ, marginBottom:26 }}>Personalizando diretrizes para o GS...</div>
+                    <div style={{ display:"flex", justifyContent:"center", gap:6 }}>
+                      {[R,RD,R].map((c,i)=>(
+                        <div key={i} style={{ width:10, height:10, background:c, animation:`pulse 1.2s ease-in-out ${i*.2}s infinite` }} />
+                      ))}
+                    </div>
+                    <style>{`@keyframes pulse{0%,80%,100%{opacity:.2;transform:scale(.7)}40%{opacity:1;transform:scale(1.2)}}`}</style>
+                  </div>
+                )}
+                {erroOnboarding && (
+                  <div style={{ background:"#FEF2F2", borderLeft:`4px solid ${R}`, padding:"11px 15px", fontSize:12, color:"#991B1B" }}>
+                    {erroOnboarding}
+                  </div>
+                )}
+                {onboarding && !loadingOnboarding && (
+                  <div>
+                    {/* Frase abertura */}
+                    <div style={{ background:RD, padding:"20px 24px", marginBottom:18, borderLeft:`6px solid ${R}` }}>
+                      <div style={{ fontSize:9, color:"rgba(255,255,255,0.55)", fontWeight:900, letterSpacing:2.5, fontFamily:FONT, marginBottom:8 }}>
+                        🎤 FRASE DE ABERTURA DO KICK-OFF
+                      </div>
+                      <div style={{ color:WH, fontSize:16, fontStyle:"italic", lineHeight:1.65 }}>
+                        "{onboarding.frase_abertura_kickoff}"
+                      </div>
+                    </div>
+
+                    {/* Como abrir + história */}
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:18 }}>
+                      <Card accent={R}>
+                        <SecBar color={R}>🔑 Como Abrir o Kick-off</SecBar>
+                        <div style={{ padding:"12px 18px", fontSize:12, color:"#374151", lineHeight:1.7 }}>{onboarding.abertura_encantamento}</div>
+                      </Card>
+                      <Card accent={RD}>
+                        <SecBar>📖 Como Contar a História da Rede</SecBar>
+                        <div style={{ padding:"12px 18px", fontSize:12, color:"#374151", lineHeight:1.7 }}>{onboarding.historia_da_rede}</div>
+                      </Card>
+                    </div>
+
+                    {/* Linguagem */}
+                    <Card accent={CZ} style={{ marginBottom:18 }}>
+                      <SecBar color={CZ}>🗣 Linguagem Ideal</SecBar>
+                      <div style={{ padding:"12px 18px", fontSize:12, color:"#374151", lineHeight:1.7 }}>{onboarding.linguagem_ideal}</div>
+                    </Card>
+
+                    {/* Pilares */}
+                    <Card accent={RD} style={{ marginBottom:18 }}>
+                      <SecBar>🏗 Ordem de Prioridade dos Pilares</SecBar>
+                      <div style={{ padding:16 }}>
+                        {(onboarding.ordem_pilares||[]).map((p,i)=>{
+                          const pc=p.prioridade==="Alta"?R:p.prioridade==="Média"?"#B45309":CZ;
+                          return (
+                            <div key={i} style={{ display:"flex", gap:12, marginBottom:10, background:BG, padding:11 }}>
+                              <div style={{
+                                minWidth:26, height:26, background:pc, color:WH,
+                                display:"flex", alignItems:"center", justifyContent:"center",
+                                fontSize:11, fontWeight:900, fontFamily:FONT, flexShrink:0,
+                              }}>{i+1}</div>
+                              <div style={{ flex:1 }}>
+                                <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:3 }}>
+                                  <span style={{ fontSize:11, fontWeight:900, color:pc, fontFamily:FONT }}>{p.pilar.toUpperCase()}</span>
+                                  <span style={{ fontSize:9, fontWeight:900, color:pc, border:`1px solid ${pc}`, padding:"1px 5px", fontFamily:FONT, letterSpacing:1 }}>
+                                    {p.prioridade.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize:11, color:CZ, marginBottom:2 }}>{p.por_que}</div>
+                                <div style={{ fontSize:11, color:"#374151", fontStyle:"italic" }}>💬 {p.como_apresentar}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+
+                    {/* Desafios + momentos */}
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:18 }}>
+                      <Card accent="#B45309">
+                        <SecBar color="#B45309">⚡ Desafios Antecipados</SecBar>
+                        <div style={{ padding:14 }}>
+                          {(onboarding.desafios_antecipados||[]).map((d,i)=>(
+                            <div key={i} style={{ marginBottom:11 }}>
+                              <div style={{ fontSize:11, fontWeight:900, color:"#92400E", marginBottom:3 }}>▶ {d.desafio}</div>
+                              <div style={{ fontSize:11, color:"#78350F" }}>→ {d.como_contornar}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                      <Card accent="#065F46">
+                        <SecBar color="#065F46">🔍 Momentos Críticos</SecBar>
+                        <div style={{ padding:14, fontSize:12, color:"#374151", lineHeight:1.7 }}>{onboarding.momentos_criticos}</div>
+                      </Card>
+                    </div>
+
+                    {/* Vínculo */}
+                    <Card accent="#1D4ED8" style={{ marginBottom:22 }}>
+                      <SecBar color="#1D4ED8">🤝 Como Manter o Vínculo</SecBar>
+                      <div style={{ padding:"12px 18px", fontSize:12, color:"#374151", lineHeight:1.7 }}>{onboarding.como_manter_vinculo}</div>
+                    </Card>
+
+                    <Faixas n={3} opacity={.1} />
+                    <div style={{ marginTop:18 }}>
+                      <BtnInova onClick={reiniciar} full>← Analisar Novo Cliente</BtnInova>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* RODAPÉ */}
+      <footer style={{ borderTop:`3px solid ${R}`, background:RD, padding:"10px 24px", marginTop:36 }}>
+        <div style={{ maxWidth:900, margin:"0 auto", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span style={{ color:"rgba(255,255,255,0.5)", fontSize:9, fontFamily:FONT, letterSpacing:2 }}>
+            REDE INOVA DROGARIAS · SISTEMA INTERNO · GS
+          </span>
+          <Faixas n={3} opacity={.3} />
+        </div>
+      </footer>
     </div>
   );
 }
