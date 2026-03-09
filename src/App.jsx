@@ -143,22 +143,37 @@ Retorne neste formato:
 
   async function gerarOnboarding(res) {
     setLoadingOnboarding(true); setErroOnboarding(""); setAbaAtiva("onboarding");
-    const prompt=`Você é especialista em onboarding de licenciados da Rede Inova Drogarias.
-PERFIL: Nome=${res.nome||"?"} · Perfil=${res.perfil_principal}/${res.perfil_secundario} · Interesse=${res.nivel1_interesse} · Experiência=${res.nivel2_experiencia} · Funil=${res.nivel4_funil} · Score=${res.nivel3_rid?.score_geral}/100 · Aderência=${res.nivel3_rid?.aderencia_rede} · Farmácia=${res.tamanho||"?"} · Justificativa=${res.justificativa_perfil}
-FILOSOFIA: O kick-off NÃO apresenta ferramentas. É encantamento. Conta a história da rede, mostra a transformação. Como entregar a chave de um apartamento — mostra os cômodos com emoção, não explica que o quarto é para dormir. Filosofia: "Não vamos soltar a mão dele".
-PILARES: Bandeiramento · Fachada/Identidade Visual · Comercial · Marketing · Aceleração · Evento
-Responda APENAS com JSON válido:
-{"abertura_encantamento":"<3-4 frases como abrir o kick-off>","historia_da_rede":"<2-3 frases como contar a história>","ordem_pilares":[{"pilar":"<nome>","prioridade":"<Alta|Média|Baixa>","por_que":"<razão>","como_apresentar":"<benefício/resultado, sem ferramenta>"}],"linguagem_ideal":"<tom, vocab, o que usar/evitar>","desafios_antecipados":[{"desafio":"<desafio>","como_contornar":"<estratégia>"}],"momentos_criticos":"<quando pode desengajar e como agir>","como_manter_vinculo":"<frequência, canal, tipo de contato>","frase_abertura_kickoff":"<frase exata para abrir>"}`;
+    const promptKickoff = "Gere um kickoff personalizado para GS da Rede Inova Drogarias. Retorne APENAS JSON valido, sem markdown, sem texto fora do JSON.\n"
+      + "PERFIL: " + res.perfil_principal + "/" + res.perfil_secundario
+      + " | Interesse: " + res.nivel1_interesse
+      + " | Experiencia: " + res.nivel2_experiencia
+      + " | Funil: " + res.nivel4_funil
+      + " | Score: " + (res.nivel3_rid?.score_geral||"?") + "/100"
+      + " | " + res.justificativa_perfil + "\n"
+      + "FILOSOFIA: kickoff eh encantamento nao apresentacao de ferramentas. Mostre a transformacao. Nao vamos soltar a mao dele.\n"
+      + "PILARES: Bandeiramento, Fachada, Comercial, Marketing, Aceleracao, Evento.\n"
+      + 'FORMATO OBRIGATORIO (respostas curtas, max 2 frases por campo):\n'
+      + '{"frase_abertura_kickoff":"texto","abertura_encantamento":"texto","historia_da_rede":"texto","linguagem_ideal":"texto","ordem_pilares":[{"pilar":"nome","prioridade":"Alta","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Alta","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Media","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Media","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Baixa","por_que":"texto","como_apresentar":"texto"},{"pilar":"nome","prioridade":"Baixa","por_que":"texto","como_apresentar":"texto"}],"desafios_antecipados":[{"desafio":"texto","como_contornar":"texto"},{"desafio":"texto","como_contornar":"texto"}],"momentos_criticos":"texto","como_manter_vinculo":"texto"}';
     try {
       const res2=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
         headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2500,messages:[{role:"user",content:prompt}]}),
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:3000,messages:[{role:"user",content:promptKickoff}]}),
       });
       const data=await res2.json();
       if(data.error) throw new Error(data.error.message);
       const raw=data.content?.map(b=>b.text||"").join("")||"";
-      setOnboarding(JSON.parse(raw.replace(/```json|```/g,"").trim()));
+      const clean=raw.replace(/```json|```/g,"").trim();
+      let parsed;
+      try { parsed=JSON.parse(clean); }
+      catch(_) {
+        // JSON cortado: tenta fechar no ultimo } completo
+        const lb=clean.lastIndexOf("}");
+        if(lb>0){ try{ parsed=JSON.parse(clean.substring(0,lb+1)+"}" ); }catch(__){} }
+        if(!parsed){ try{ parsed=JSON.parse(clean.substring(0,lb+1)); }catch(__){} }
+        if(!parsed){ setErroOnboarding("Erro de JSON. Início da resposta: "+clean.substring(0,300)); return; }
+      }
+      setOnboarding(parsed);
     } catch(e){ setErroOnboarding("Erro: "+(e?.message||String(e))); }
     finally { setLoadingOnboarding(false); }
   }
