@@ -77,7 +77,13 @@ export default function InovaPerfilCliente() {
   async function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (ext === "docx" || ext === "pdf") {
+      setErro("⚠️ Para arquivos .docx ou .pdf: abra o arquivo, selecione tudo (Ctrl+A), copie (Ctrl+C) e cole no campo de texto abaixo.");
+      return;
+    }
     const text = await file.text();
+    setErro("");
     setForm({ ...form, transcricao: text });
   }
 
@@ -142,13 +148,16 @@ Retorne exatamente neste formato JSON:
         }),
       });
       const data = await res.json();
+      if (data.error) throw new Error(data.error.message || "Erro da API Anthropic");
       const raw = data.content?.map((b) => b.text || "").join("") || "";
+      if (!raw) throw new Error("Resposta vazia da API");
       const clean = raw.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setResultado({ ...parsed, nome: form.nome, codigo: form.codigo, tamanho: form.tamanho });
       setStep("result");
     } catch (e) {
-      setErro("Erro ao processar a análise. Tente novamente.");
+      const msg = e?.message || String(e);
+      setErro("Erro ao processar a análise: " + msg + " — Verifique se a chave de API está correta.");
       setStep("form");
     }
   }
@@ -303,9 +312,9 @@ Retorne exatamente neste formato JSON:
                   Clique para fazer upload
                 </div>
                 <div style={{ color: "#9CA3AF", fontSize: 12, marginTop: 4 }}>
-                  .txt, .pdf, .docx — ou cole abaixo
+                  Apenas .txt — ou cole o texto abaixo
                 </div>
-                <input ref={fileRef} type="file" accept=".txt,.pdf,.docx" onChange={handleFile}
+                <input ref={fileRef} type="file" accept=".txt" onChange={handleFile}
                   style={{ display: "none" }} />
               </div>
 
