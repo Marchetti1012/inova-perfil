@@ -5,7 +5,7 @@ const INOVA_DARK = "#8B0000";
 const INOVA_LIGHT = "#FFF0F0";
 const INOVA_ACCENT = "#FF3333";
 
-const ANTHROPIC_KEY = const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_KEY;
+const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_KEY;
 
 const PROFILES = {
   Gestor: {
