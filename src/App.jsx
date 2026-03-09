@@ -5,7 +5,7 @@ const INOVA_DARK = "#8B0000";
 const INOVA_LIGHT = "#FFF0F0";
 const INOVA_ACCENT = "#FF3333";
 
-const ANTHROPIC_KEY = "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";
+const ANTHROPIC_KEY = "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";
 
 const PROFILES = {
   Gestor: {
